@@ -10,7 +10,6 @@
 import sys
 # Needed to calculate time taken
 import time
-from string import maketrans
 
 # English letter frequencies a-z, taken from:
 # http://en.wikipedia.org/wiki/Letter_frequency
@@ -135,12 +134,8 @@ def guess_keylength(text):
 """
 def caesar_shift(text, shift):
     alphabet = 'abcdefghijklmnopqrstuvwxyz'
-    # "from string import maketrans" is needed for version 3.1 of Python
-    if sys.version_info < (3,2):
-        from string import maketrans
     code = alphabet[shift:] + alphabet[:shift]
-    trans = maketrans(alphabet, code)
-    return text.translate(trans)
+    return text.translate({ord(x):y for (x, y) in zip(alphabet, code)})
 
 """
     Discovers the correct key of length for decoding text
