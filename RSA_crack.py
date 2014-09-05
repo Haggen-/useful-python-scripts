@@ -1,8 +1,10 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 """
     RSA Encryption, Decryption and Breaking
-    By: Johan Hägg
+    By: Johan Hagg
     2011-05-06
-    Tested on Python 2.7, should work for later and some earlier versions aswell
+    Tested on Python 2.7 and 3.2
     Last Updated: 2011-05-08
 """
 import math
@@ -87,6 +89,7 @@ def square_and_multiply(x, c, n):
         if int(bin_c[c_length - i]) == 1:
             z = (z * x) % n
     return z
+
 """ Miller rabin pass returns True if n is probably a Prime, otherwise False """
 def miller_rabin_pass(a, s, d, n):
     a_to_power = square_and_multiply(a, d, n)
@@ -114,14 +117,14 @@ def miller_rabin(n):
         return True
 
 """ Generate a public key and a private key to be used in RSA encryption """
-def generate_keys():
+def generate_keys(lower, upper):
     p = 4
     q = 4
     while(miller_rabin(p) == False or miller_rabin(q) == False or (p == q)):
         if not miller_rabin(p):
-            p = random.randint(50000,70000)
+            p = random.randint(lower, upper)
         if not miller_rabin(q):
-            q = random.randint(50000, 70000)
+            q = random.randint(lower, upper)
     n = p * q
     phi = (p - 1) * (q - 1)
 
@@ -134,18 +137,18 @@ def generate_keys():
     return(public_key,private_key)
 
 """ Encrypts m using RSA encryption, where e and n is the public key. """
-def encrypt(m, n, e):
+def encrypt(m, e, n):
     return square_and_multiply(m, e, n)
 
 """ Decrypts c using RSA decryption, where d and n is the private key. """
-def decrypt(c, n, d):
+def decrypt(c, d, n):
     return square_and_multiply(c, d, n)
 
 """ Generate r ciphertexts using public key (e,n) and RSA encryption """
 def generate_ciphertexts(e, n, r):
     result = [0]
     for i in range(1, r):
-        result.append(encrypt(i, n, e))
+        result.append(encrypt(i, e, n))
     return result
 
 """ Find the message from m using generated cipher texts and r. """
@@ -169,63 +172,66 @@ def encode_char(ch):
 
 """ Decodes a binary number to a character """
 def decode_char(b):
-    return int(b, 2)
+    return chr(int(b, 2))
                 
 def main():
     if len(sys.argv) < 2:
         print("Use the --help flag for instructions.")
         
-    elif sys.argv[1] == "--keygen":
-        public_key, private_key = generate_keys()
+    elif sys.argv[1] == "--keygen" and len(sys.argv) >= 4:
+        public_key, private_key = generate_keys(int(sys.argv[2]), int(sys.argv[3]))
         print("Public Key (e, n)")
         print(public_key)
         print("Private Key (d, n)")
         print(private_key)
 
-    elif sys.argv[1] == "--encrypt":
+    elif sys.argv[1] == "--encrypt" and len(sys.argv) >= 5:
         word = sys.argv[4]
         e = int(sys.argv[2])
         n = int(sys.argv[3])
         text = ""
         for i in range(1, len(word)+1):
-            text = letters + encode_char(word[i - 1])
+            text = text + encode_char(word[i - 1])
             if i % 2 == 0:
                 text = int(text, 2)
-                sys.stdout.write(str(encrypt(text, e, i, n)) + '\n')
+                print(str(encrypt(text, e, n)))
                 text = ""
-        if letters != "":
-            if len(letters) != 16:
+        if text != "":
+            if len(text) != 16:
                 text = text + '0'*8
                 text = int(text, 2)
-                sys.stdout.write(str(encrypt(text, e, n)))
+                print(str(encrypt(text, e, n)))
             
-    elif sys.argv[1] == "--decrypt":
+    elif sys.argv[1] == "--decrypt" and len(sys.argv) >= 4:
         text = ""
         d = int(sys.argv[2])
         n = int(sys.argv[3])
         for line in sys.stdin:
             number = decrypt(int(line), int(sys.argv[2]), int(sys.argv[3]))
             number = str(int_to_binary(number, 16))
-            text = text + decode_char(int(number[0:8])) + decode_char(int(number[8:16]))
+            text = text + decode_char(number[0:8]) + decode_char(number[8:16])
         print(text)
             
-    elif sys.argv[1] == "--break":
-        e = int(sys.stdin.readline())
-        n = int(sys.stdin.readline())
-        print(n, d)
+    elif sys.argv[1] == "--break" and len(sys.argv) >= 4:
+        e = int(sys.argv[2])
+        n = int(sys.argv[3])
+        print("Public Key")
+        print(e, n)
         result_string = ""
         tick = time.time()
         for line in sys.stdin:
-            pick = break_rsa(int(line), n, e, int(sys.argv[2]))
+            pick = break_rsa(int(line), n, e, int(sys.argv[4]))
             if pick != None:
                 letters = int_to_binary(pick,16)
                 result_string = result_string + chr(int(letters[0:8],2)) + chr(int(letters[8:16],2))
-        print(time.time()-tick)
-        print(result_string)
+        print("Time taken: " + str(round(time.time()-tick, 2)) + " seconds.")
+        print("Found message: " + result_string)
 
     elif sys.argv[1] == "--help":
-        print("Use '--encrypt e n text' where n and d is part of the public key and text is the string to be encrypted.")
-        print("Use '--decrypt d n < file.txt' where n and d is part of the public key and file.txt is a file with RSA encoded strings.")
-        print("Use --break r < file.txt to break a encrypted file. ")
-
+        print("\nUse --keygen lower upper to generate a public and private key used to encrypt or decrypt a message, where lower and upper are bounds for the primes used in key generation.\n")
+        print("Use --encrypt e n 'text' where n and d is part of the public key and text is the string to be encrypted.\n")
+        print("Use --decrypt d n < file.txt  where n and d is part of the public key and file.txt is a file with RSA encoded strings.\n")
+        print("Use --break r < file.txt  to break a encrypted file.\n")
+    else:
+        print("Faulty flag, use --help flag for instructions.")
 main()
